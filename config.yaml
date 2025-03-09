@@ -1,0 +1,32 @@
+###
+# Configuration file
+###
+
+
+# Feature pipeline
+DATA_PATH: "..\\00_data\\"
+RATINGS_TABLE_NAME: "ratings.csv"
+MOVIES_TABLE_NAME: "movies.csv"
+TAGS_TABLE_NAME: "tags.csv"
+DROP_COLUMNS:
+  - "timestamp"
+feature_store:
+  name: "movie_rec_sys"
+  version: 3
+  
+
+# Training pipeline
+MODEL_LOCAL_STORAGE_PATH: "model_storage"
+REC_OUTPUT_PATH: "recommendation_data"
+MLFLOW_SERVER: "http://127.0.0.1:8080"
+EXPERIMENT_NAME: "MovieLens_Hybrid_Recommender_System"
+MODEL_NAME: "hybrid_recommendation_model"
+METADATA_FILENAME: "metadata"
+RECOMMENDATIONS_FILENAME: "recommendations"
+model_hyperparameters:
+  content_weight: 0.3
+  collaborative_weight: 0.7
+  diversity_weight: 0.05
+  base_score: 0.05
+  n_precomputed_recs: 100
+  similar_users: 100
