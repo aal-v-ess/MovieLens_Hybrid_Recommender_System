@@ -182,9 +182,10 @@ class RecommendationModelRegistry:
             # Create requirements list
             pip_requirements = [
                 "numpy>=1.20.0",
-                "pandas>=1.3.0",
-                "scikit-learn>=1.0.0",
-                "mlflow>=2.0.0"
+                "pandas>=1.3.4",
+                "scikit-learn>=0.24.2",
+                "mlflow>=2.0.0",
+                "cloudpickle>=1.3.0"
             ]
             
             # Log the model using the Python function flavor
@@ -198,17 +199,106 @@ class RecommendationModelRegistry:
             
             # Register the model if requested
             if register:
-                model_uri = f"runs:/{run_id}/recommendation_model"
+                model_uri = f"runs:/{run_id}/hybrid_recommendation_model"
                 version = mlflow.register_model(model_uri, self.model_name)
                 logger.info(f"Registered model: {self.model_name}, version: {version.version}")
         
         return run_id
+    
+
+
+
+
+def promote_model_to_production(model_name, version=None, tracking_uri=None):
+    """
+    Promote a specific model version to production
+    
+    Parameters:
+    -----------
+    model_name : str
+        Name of the registered model
+    version : str or int, optional
+        Specific version to promote. If None, promotes the latest version
+    tracking_uri : str, optional
+        MLFlow tracking URI
+    
+    Returns:
+    --------
+    dict
+        Information about the promoted model
+    """
+    # Set tracking URI if provided
+    if tracking_uri:
+        mlflow.set_tracking_uri(tracking_uri)
+    
+    # Get MLFlow client
+    client = mlflow.tracking.MlflowClient()
+    
+    # Find the model versions
+    model_versions = client.search_model_versions(f"name='{model_name}'")
+    
+    if not model_versions:
+        raise ValueError(f"No versions found for model '{model_name}'")
+    
+    # If version not specified, get the latest version
+    if version is None:
+        version = max([int(mv.version) for mv in model_versions])
+    
+    # Find the specified version
+    model_version = None
+    for mv in model_versions:
+        if mv.version == str(version):
+            model_version = mv
+            break
+    
+    if model_version is None:
+        raise ValueError(f"Version {version} not found for model '{model_name}'")
+    
+    # Archive any existing production models
+    for mv in model_versions:
+        if mv.current_stage == "Production" and mv.version != str(version):
+            client.transition_model_version_stage(
+                name=model_name,
+                version=mv.version,
+                stage="Archived",
+                archive_existing_versions=False
+            )
+            print(f"Archived previous production model: {model_name} version {mv.version}")
+    
+    # Promote the specified version to production
+    client.transition_model_version_stage(
+        name=model_name,
+        version=str(version),
+        stage="Production"
+    )
+    
+    # Add description and update time
+    client.update_model_version(
+        name=model_name,
+        version=str(version),
+        description=f"Promoted to production on {datetime.now().isoformat()}"
+    )
+    
+    print(f"Successfully promoted {model_name} version {version} to Production")
+    
+    # Return the promoted model version info
+    return {
+        "name": model_name,
+        "version": version,
+        "stage": "Production",
+        "promotion_time": datetime.now().isoformat()
+    }
+
+
+
+
+
 
 def register_recommendation_model(recommender, 
                                  output_path: str = "recommendation_data",
                                  tracking_uri: Optional[str] = None,
                                  experiment_name: str = "recommendation_system",
-                                 model_name: str = "enhanced_recommendation_model",
+                                 model_name: str = "hybrid_recommendation_model",
                                  local_model_path: str = "model_storage",
                                  metadata_filename: str = "metadata",
                                  recommendation_filename: str = "recommendations"):
@@ -295,5 +385,11 @@ def register_recommendation_model(recommender,
         tags=tags,
         local_model_path=local_model_path
     )
+
+    model_info = dict()
+    model_info = promote_model_to_production(model_name=model_name, version=None, tracking_uri=tracking_uri)
+    logger.info(f"Model registered and promoted to production: {model_info}")
+
+
     
     return run_id
