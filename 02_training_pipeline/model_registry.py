@@ -182,10 +182,10 @@ class RecommendationModelRegistry:
             # Create requirements list
             pip_requirements = [
                 "numpy>=1.20.0",
-                "pandas>=1.3.4",
+                "pandas==2.1.4",
                 "scikit-learn>=0.24.2",
                 "mlflow>=2.0.0",
-                "cloudpickle>=1.3.0"
+                "cloudpickle==3.1.1"
             ]
             
             # Log the model using the Python function flavor

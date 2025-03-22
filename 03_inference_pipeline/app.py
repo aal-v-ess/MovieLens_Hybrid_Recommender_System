@@ -65,8 +65,19 @@ async def startup_event():
                 del sys.modules["cloudpickle"]
             import cloudpickle
             print(f"CloudPickle version after install: {cloudpickle.__version__}")
+
+        import pandas
+        if pandas.__version__ < "2.0.0":
+            print(f"Detected Pandas {pandas.__version__}, but need 2.1.4. Attempting to install...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "cloudpickle==2.1.4", "--force-reinstall"])
+            
+            # Reload the module to get the new version
+            if "pandas" in sys.modules:
+                del sys.modules["pandas"]
+            import pandas
+            print(f"Pandas version after install: {pandas.__version__}")
     except Exception as e:
-        print(f"Error handling CloudPickle version: {e}")
+        print(f"Error handling CloudPickle and Pandas versions: {e}")
     
     # Initialize the MLFlow-based recommender
     app.state.recommender = MLFlowRecommendationServer(
